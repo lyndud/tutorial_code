@@ -1,0 +1,70 @@
+import requests
+import csv
+import json
+import getpass
+import httpx
+from dateutil import parser
+from datetime import datetime, timedelta
+import pandas as pd
+
+my_instance = "https://mastodon.social"
+
+# Function to retrieve the hashtag timeline
+def get_hashtag_timeline(hashtag, limit=100, since_id=None, until_id=None):
+    endpoint = f"{my_instance}/api/v2/search"
+    params = {
+        "q": f"#{hashtag}",
+        "limit": limit,
+        "since_id": since_id,
+        "max_id": until_id
+    }
+    access_token = getpass.getpass("Enter your access token: ")
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    response = requests.get(endpoint, params=params, headers=headers)
+    response.raise_for_status()
+    response_data = response.json()
+    statuses = response_data["statuses"]
+    return statuses
+
+# Filter statuses for the month of February 2023
+def filter_statuses(statuses):
+    filtered_statuses = []
+    for status in statuses:
+        created_at = status["created_at"]
+        if "2023-02" in created_at:
+            filtered_statuses.append(status)
+    return filtered_statuses
+
+# Save data as JSON and CSV files
+def save_data_as_files(data, filename):
+    with open(f"{filename}.json", "w", encoding="utf-8") as json_file:
+        json.dump(data, json_file, ensure_ascii=False, indent=4)
+
+    with open(f"{filename}.csv", "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["Hashtag", "User ID", "Date", "Content"])
+        for status in data:
+            created_at = status["created_at"].split("T")[0]
+            content = status["content"]
+            writer.writerow(["#Ukraine", status["account"]["id"], created_at, content])
+
+# Retrieve hashtag timeline for #Ukraine
+hashtag = "Ukraine"
+hashtag_timeline = get_hashtag_timeline(hashtag, limit=100)
+
+# Filter statuses for February 2023
+filtered_statuses = filter_statuses(hashtag_timeline)
+
+# Save filtered data as JSON and CSV files
+save_data_as_files(filtered_statuses, "ukraine_february_2023")
+
+# Display JSON data
+with open("ukraine_february_2023.json", "r", encoding="utf-8") as json_file:
+    json_data = json.load(json_file)
+    display.JSON(json_data)
+
+# Load CSV data into a DataFrame
+csv_data = pd.read_csv("ukraine_february_2023.csv")
+display.display(csv_data)
